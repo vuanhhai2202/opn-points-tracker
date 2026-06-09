@@ -100,3 +100,47 @@ button:hover {
   margin-top: 18px;
   color: #c4b5fd;
 }
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.card {
+  height: fit-content;
+}
+
+.quest-card-main h2 {
+  margin-top: 0;
+}
+
+.quest-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.quest-card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.quest-card p {
+  margin: 0 0 10px;
+  opacity: 0.8;
+}
+
+.quest-card button {
+  margin-right: 8px;
+  margin-top: 6px;
+}
+
+@media (max-width: 800px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+}

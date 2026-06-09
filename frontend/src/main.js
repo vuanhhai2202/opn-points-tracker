@@ -1,18 +1,22 @@
 import { ethers } from "ethers";
 import "./style.css";
 
-const CONTRACT_ADDRESS = "0xA3a83f42Cae385C9Db4d174b43756d9999d0c9a3";
+const CONTRACT_ADDRESS = "0x08eB5dD0323F52699E42d5239b532048afBb9A58";
 const CHAIN_ID = "0x3d8";
 
 const ABI = [
   "function dailyCheckIn(uint256 amount)",
   "function getPoints(address user) view returns(uint256)",
-  "function canCheckIn(address user) view returns(bool)"
+  "function canCheckIn(address user) view returns(bool)",
+
+  "function completeQuest(uint256 questId, uint256 reward)",
+  "function hasCompletedQuest(address user, uint256 questId) view returns(bool)"
 ];
 
 document.querySelector("#app").innerHTML = `
   <main class="container">
-    <div class="card">
+  <div class="dashboard">
+    <div class="card checkin-card">
       <p class="badge">IOPN Testnet • Chain ID 984</p>
       <h1>OPN Points Tracker</h1>
       <p class="subtitle">Daily check-in and earn on-chain OPN points.</p>
@@ -30,6 +34,12 @@ document.querySelector("#app").innerHTML = `
       <button id="checkInBtn">Daily Check-In</button>
 
       <p id="status"></p>
+
+    </div>
+
+    <div class="card quest-card-main">
+      <h2>Quest System</h2>
+      <div id="quests"></div>
     </div>
   </main>
 `;
@@ -222,6 +232,9 @@ connectBtn.onclick = async () => {
       userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
 
     await updateCheckInButton();
+    await refreshPoints();
+    await renderQuests();
+   
 
     connectBtn.innerText = "Connected";
     connectBtn.disabled = true;
@@ -285,5 +298,51 @@ checkInBtn.onclick = async () => {
     console.error(error);
     statusText.innerText = "Check-in failed or rejected.";
     updateCheckInButton();
+  }
+};
+const quests = [
+  { id: 1, title: "Follow IOPN", reward: 50, url: "https://x.com/IOPn_io" },
+  { id: 2, title: "Join Discord", reward: 50, url: "https://discord.com/invite/iopn" },
+  { id: 3, title: "Share Project", reward: 100, url: "https://opn-points-tracker.vercel.app" },
+  { id: 4, title: "Submit Feedback", reward: 150, url: "https://github.com/vuanhhai2202/opn-points-tracker/issues" },
+];
+async function renderQuests() {
+  const questBox = document.getElementById("quests");
+  questBox.innerHTML = "";
+
+  for (const quest of quests) {
+    const done = await contract.hasCompletedQuest(userAddress, quest.id);
+
+    const div = document.createElement("div");
+    div.className = "quest-card";
+
+    div.innerHTML = `
+     <h3>${quest.title}</h3>
+     <p>Reward: +${quest.reward} points</p>
+
+    <button onclick="window.open('${quest.url}', '_blank')">
+    Do Quest
+     </button>
+
+     <button ${done ? "disabled" : ""} onclick="completeQuest(${quest.id}, ${quest.reward})">
+    ${done ? "Completed" : "Complete Quest"}
+    </button>
+  `;
+
+    questBox.appendChild(div);
+  }
+}
+window.completeQuest = async function (questId, reward) {
+  try {
+    const tx = await contract.completeQuest(questId, reward);
+    await tx.wait();
+
+    await refreshPoints();
+    await renderQuests();
+
+    alert("Quest completed!");
+  } catch (err) {
+    console.error(err);
+    alert("Quest failed or already completed.");
   }
 };
