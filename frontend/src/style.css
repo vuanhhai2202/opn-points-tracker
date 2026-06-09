@@ -165,3 +165,14 @@ button:hover {
 .onchain-card button {
   width: 100%;
 }
+.nft-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nft-thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+}

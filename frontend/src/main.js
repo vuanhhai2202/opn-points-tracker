@@ -477,22 +477,45 @@ async function renderNFTRewards() {
   box.innerHTML = "";
 
   const points = Number(await contract.getPoints(userAddress));
-
+  const imageMap = {
+    1: "/bronze.png",
+    2: "/silver.png",
+    3: "/gold.png",
+  };
   for (const nft of nftRewards) {
     const claimed = await contract.hasClaimedNFT(userAddress, nft.tier);
     const eligible = points >= nft.required;
 
     const div = document.createElement("div");
     div.className = "quest-card";
+  let buttonText = "";
+  let buttonDisabled = "";
 
-    div.innerHTML = `
-      <h3>${nft.title}</h3>
-      <p>Required: ${nft.required} points</p>
+  if (claimed) {
+    buttonText = "Claimed";
+    buttonDisabled = "disabled";
+  } else if (!eligible) {
+    buttonText = "Not enough points";
+    buttonDisabled = "disabled";
+  } else {
+    buttonText = "Claim NFT";
+  }
+  div.innerHTML = `
+    <div class="nft-row">
+      <div>
+        <h3>${nft.title}</h3>
+        <p>Required: ${nft.required} points</p>
+      </div>
 
-      <button ${claimed || !eligible ? "disabled" : ""} onclick="claimNFT(${nft.tier})">
-        ${claimed ? "Claimed" : eligible ? "Claim NFT" : "Not enough points"}
-      </button>
-    `;
+      <img
+        class="nft-thumb"
+        src="${imageMap[nft.tier]}"
+        alt="${nft.title}"
+      />
+    </div>
+
+    <button>${buttonText}</button>
+  `;
 
     box.appendChild(div);
   }
