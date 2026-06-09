@@ -1,0 +1,15 @@
+{
+  "name": "OPN Quest Bronze Badge",
+  "description": "Awarded for reaching 100 points in OPN Quest Hub.",
+  "image": "ipfs://bafybeifgyagavhnyn4jknhu6ymlbjssbvvbl4zy3phobbhawylkc2fktyu",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Bronze"
+    },
+    {
+      "trait_type": "Required Points",
+      "value": 100
+    }
+  ]
+}

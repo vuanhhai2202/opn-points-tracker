@@ -1,0 +1,15 @@
+{
+  "name": "OPN Quest Silver Badge",
+  "description": "Awarded for reaching 500 points in OPN Quest Hub.",
+  "image": "ipfs://bafybeidkzwdk5hd5tgixwi2n3cp3uhw3uyyvju5bqepg2atmckpecfcjua",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Silver"
+    },
+    {
+      "trait_type": "Required Points",
+      "value": 500
+    }
+  ]
+}

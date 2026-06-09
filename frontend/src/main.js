@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import "./style.css";
 
-const CONTRACT_ADDRESS = "0x40755251D2cf6Ce8FA733AF43C50642eD0314fA1";
+const CONTRACT_ADDRESS = "0x45C277439298AAF0952bC92236C78Aa138313a51";
 const CHAIN_ID = "0x3d8";
 
 const ABI = [
@@ -12,7 +12,8 @@ const ABI = [
   "function completeQuest(uint256 questId, uint256 reward)",
   "function hasCompletedQuest(address user, uint256 questId) view returns(bool)",
   "function claimNFT(uint256 tier)",
-  "function hasClaimedNFT(address user, uint256 tier) view returns(bool)"
+  "function hasClaimedNFT(address user, uint256 tier) view returns(bool)",
+  "function tokenURI(uint256 tokenId) public view returns (string memory)"
 ];
 
 document.querySelector("#app").innerHTML = `

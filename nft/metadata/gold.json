@@ -1,0 +1,15 @@
+{
+  "name": "OPN Quest Gold Badge",
+  "description": "Awarded for reaching 1000 points in OPN Quest Hub.",
+  "image": "ipfs://bafybeiaoeunhilhjsiiidxvi3yn4coqduh554q2ny62tigukcpywi5wjau",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Gold"
+    },
+    {
+      "trait_type": "Required Points",
+      "value": 1000
+    }
+  ]
+}

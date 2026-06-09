@@ -9,7 +9,18 @@ contract OPNPoints is ERC721 {
     mapping(address => mapping(uint256 => bool)) public completedQuests;
     mapping(address => mapping(uint256 => bool)) public claimedNFT;
 
+    mapping(uint256 => uint256) public tokenTier;
+
     uint256 public nextTokenId = 1;
+
+    string public constant BRONZE_URI =
+        "ipfs://bafybeievscabqzzk7cyu5r7djjfyn3465jjhvd6hf7fqhc275womva7lpi/bronze.json";
+
+    string public constant SILVER_URI =
+        "ipfs://bafybeievscabqzzk7cyu5r7djjfyn3465jjhvd6hf7fqhc275womva7lpi/silver.json";
+
+    string public constant GOLD_URI =
+        "ipfs://bafybeievscabqzzk7cyu5r7djjfyn3465jjhvd6hf7fqhc275womva7lpi/gold.json";
 
     event DailyCheckIn(address indexed user, uint256 amount, uint256 day);
     event QuestCompleted(address indexed user, uint256 questId, uint256 reward);
@@ -28,11 +39,7 @@ contract OPNPoints is ERC721 {
         );
 
         uint256 today = block.timestamp / 1 days;
-
-        require(
-            lastCheckInDay[msg.sender] < today,
-            "Already checked in today"
-        );
+        require(lastCheckInDay[msg.sender] < today, "Already checked in today");
 
         lastCheckInDay[msg.sender] = today;
         points[msg.sender] += amount;
@@ -64,11 +71,28 @@ contract OPNPoints is ERC721 {
 
         uint256 tokenId = nextTokenId;
         claimedNFT[msg.sender][tier] = true;
+        tokenTier[tokenId] = tier;
         nextTokenId++;
 
         _safeMint(msg.sender, tokenId);
 
         emit NFTClaimed(msg.sender, tier, tokenId);
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+
+        uint256 tier = tokenTier[tokenId];
+
+        if (tier == 1) {
+            return BRONZE_URI;
+        } else if (tier == 2) {
+            return SILVER_URI;
+        } else if (tier == 3) {
+            return GOLD_URI;
+        } else {
+            revert("Invalid token tier");
+        }
     }
 
     function getPoints(address user) public view returns (uint256) {
