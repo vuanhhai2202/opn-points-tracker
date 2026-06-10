@@ -25,13 +25,91 @@ https://github.com/vuanhhai2202/opn-points-tracker
 
 Contract Address:
 
-```text
 0x45C277439298AAF0952bC92236C78Aa138313a51
-```
 
 ---
 
 ## Features
+## S1 DeFi & Open Finance Module
+
+OPN Quest Hub now includes an additional DeFi module designed for the S1 — DeFi & Open Finance track.
+
+### OQH Token
+
+OQH is the utility token of OPN Quest Hub.
+
+- Token Name: OPN Quest Hub Token
+- Symbol: OQH
+- Network: IOPN Testnet
+
+### OQH Faucet
+
+Users can claim free test OQH tokens for staking.
+
+- Claim amount: 1000 OQH
+- Claim limit: once per day
+- Reset time: 00:00 UTC
+
+### OQH Staking Vault
+
+Users can stake OQH tokens into the DeFi Vault and earn yield over time.
+
+Features:
+
+- Stake custom OQH amount
+- Claim hourly yield rewards
+- Withdraw staked OQH
+- Rewards increase based on staking duration
+
+### Yield Mechanism
+
+The vault calculates rewards based on staking time.
+
+Reward = Staked Amount × Hours Staked × Reward Rate
+
+================
+
+Current reward rate:
+
+0.01% per hour
+
+=================
+
+### DeFi Flow
+
+Claim OQH from Faucet
+↓
+Stake OQH in Vault
+↓
+Earn Hourly Yield
+↓
+Claim Rewards
+↓
+Withdraw OQH
+
+------
+
+### Deployed DeFi Contracts
+
+------
+
+OQH Token: "0xE76ac2dA2E36c9D1261759a2145a1c39d90712E4"
+
+OQH Staking Vault: "0xbed81f0BDd64EFce45AD77b42B6c8b52371991d5"
+
+-----
+
+### Why This Fits S1 — DeFi & Open Finance
+
+This module adds DeFi mechanics to the original quest platform:
+
+ERC20 utility token
+Token faucet
+Staking vault
+Yield rewards
+On-chain financial interaction
+
+The project combines user engagement with DeFi incentives, turning OPN Quest Hub into a gamified open finance experience.
 
 ### Wallet Integration
 
@@ -47,11 +125,10 @@ All user points are stored on-chain.
 
 Functions:
 
-```solidity
+solidity
 getPoints(address)
-```
 
-Features:
+### Features:
 
 * Real-time point tracking
 * Transparent and verifiable rewards
@@ -73,9 +150,9 @@ Random rewards:
 
 Contract Function:
 
-```solidity
+solidity
 canCheckIn(address)
-```
+
 
 ---
 
@@ -105,10 +182,10 @@ Features:
 
 Functions:
 
-```solidity
+solidity
 completeQuest()
 hasCompletedQuest()
-```
+
 
 ---
 
@@ -142,11 +219,11 @@ NFT Tiers:
 
 Functions:
 
-```solidity
+solidity
 claimNFT()
 hasClaimedNFT()
 tokenURI()
-```
+
 
 ---
 
@@ -154,9 +231,8 @@ tokenURI()
 
 IPFS Metadata CID:
 
-```text
 bafybeievscabqzzk7cyu5r7djjfyn3465jjhvd6hf7fqhc275womva7lpi
-```
+
 
 Files:
 
@@ -182,9 +258,8 @@ Transaction milestone rewards:
 
 Frontend reads activity using:
 
-```javascript
 provider.getTransactionCount(userAddress)
-```
+
 
 Quest IDs:
 
@@ -214,12 +289,10 @@ Quest IDs:
 
 ## Project Structure
 
-```text
 frontend/
 contracts/
 scripts/
 artifacts/
-```
 
 ---
 
