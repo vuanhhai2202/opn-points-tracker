@@ -2,6 +2,8 @@ import { ethers } from "ethers";
 import "./style.css";
 
 const CONTRACT_ADDRESS = "0x45C277439298AAF0952bC92236C78Aa138313a51";
+const OPN_TOKEN_ADDRESS = "0xE76ac2dA2E36c9D1261759a2145a1c39d90712E4";
+const OPN_VAULT_ADDRESS = "0xbed81f0BDd64EFce45AD77b42B6c8b52371991d5";
 const CHAIN_ID = "0x3d8";
 
 const ABI = [
@@ -14,7 +16,23 @@ const ABI = [
   "function claimNFT(uint256 tier)",
   "function hasClaimedNFT(address user, uint256 tier) view returns(bool)",
   "function tokenURI(uint256 tokenId) public view returns (string memory)",
-  "function lastCheckInDay(address user) view returns (uint256)"
+  "function lastCheckInDay(address user) view returns (uint256)",
+  "function canClaimFaucet(address user) view returns(bool)"
+];
+const OPN_TOKEN_ABI = [
+  "function claimTestOPN()",
+  "function balanceOf(address user) view returns(uint256)",
+  "function approve(address spender, uint256 amount)",
+  "function decimals() view returns(uint8)",
+  "function canClaimFaucet(address user) view returns(bool)"
+];
+
+const OPN_VAULT_ABI = [
+  "function stake(uint256 amount)",
+  "function withdraw()",
+  "function claimReward()",
+  "function stakedAmount(address user) view returns(uint256)",
+  "function pendingReward(address user) view returns(uint256)"
 ];
 
 document.querySelector("#app").innerHTML = `
@@ -44,15 +62,69 @@ document.querySelector("#app").innerHTML = `
       <h2>NFT Reward Center</h2>
       <div id="nftRewards"></div>
     </div>
+
+    <div class="card quest-card-main">
+
+      <div class="card faucet-card">
+        <h2>OQH Faucet</h2>
+        <p class="subtitle">
+          Claim free test OQH tokens for staking.
+        </p>
+        <p id="faucetStatus">Loading...</p>
+      <button id="faucetBtn" onclick="claimTestOPN()">
+        Claim 1000 OQH
+      </button>
+      </div>
+
+      <h2>OQH DeFi Vault</h2>
+
+      <div class="info">
+        <p><span>OQH Balance</span><b id="opnBalance">0</b></p>
+        <p><span>Staked OQH</span><b id="stakedOPN">0</b></p>
+        <p><span>Pending Reward</span><b id="pendingReward">0</b></p>
+      </div>
+
+      <div class="stake-input-wrapper">
+        <input
+          id="stakeAmount"
+          class="stake-input"
+          type="number"
+          placeholder="Enter OQH amount"
+        />
+
+        <button
+          type="button"
+          class="max-btn"
+          onclick="setMaxStake()"
+        >
+          MAX
+        </button>
+      </div>
+
+      <button onclick="stakeOPN()">
+        Stake OQH
+      </button>
+
+      <button onclick="claimVaultReward()">
+        Claim Reward
+      </button>
+
+      <button onclick="withdrawOPN()">
+        Withdraw
+      </button>
+    </div>
+
     <div class="card quest-card-main">
       <h2>Quest System</h2>
       <div id="quests"></div>
     </div>
 
+
     <div class="card quest-card-main">
     <h2>On-chain Activity</h2>
     <div id="onchainQuests"></div>
     </div>
+
 
   </main>
 `;
@@ -69,6 +141,8 @@ let signer;
 let contract;
 let userAddress;
 let countdownTimer;
+let opnToken;
+let opnVault;
 
 function randomPoints() {
   const rewards = [10, 20, 30, 40, 50];
@@ -255,7 +329,17 @@ connectBtn.onclick = async () => {
     userAddress = await signer.getAddress();
 
     contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    opnToken = new ethers.Contract(
+        OPN_TOKEN_ADDRESS,
+        OPN_TOKEN_ABI,
+        signer
+      );
 
+      opnVault = new ethers.Contract(
+        OPN_VAULT_ADDRESS,
+        OPN_VAULT_ABI,
+        signer
+      );
     walletText.innerText =
       userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
 
@@ -265,7 +349,8 @@ connectBtn.onclick = async () => {
     await renderOnchainQuests();
     await renderNFTRewards();
     await startCountdown();
-   
+    await renderDeFiVault();
+    await updateFaucetStatus();
 
     connectBtn.innerText = "Connected";
     connectBtn.disabled = true;
@@ -550,4 +635,150 @@ async function getUserTxCount() {
 
   return await provider.getTransactionCount(userAddress);
 }
+const OPN_TOKEN_ADDRESS = "0xeF9373765aAd5dbC752cdc4CD3f1E07844899d7B";
+const OPN_VAULT_ADDRESS = "0x729114c8F0432E5F5d972CFb44637A45A74b5D9A";
+
+};
+async function getDeFiContracts() {
+  const walletProvider = getWalletProvider();
+  const provider = new ethers.BrowserProvider(walletProvider);
+  const signer = await provider.getSigner();
+
+  const opnToken = new ethers.Contract(
+    OPN_TOKEN_ADDRESS,
+    OPN_TOKEN_ABI,
+    signer
+  );
+
+  const opnVault = new ethers.Contract(
+    OPN_VAULT_ADDRESS,
+    OPN_VAULT_ABI,
+    signer
+  );
+
+  return { opnToken, opnVault };
+}
+
+async function renderDeFiVault() {
+  if (!userAddress) return;
+
+  const { opnToken, opnVault } = await getDeFiContracts();
+
+  const balance = await opnToken.balanceOf(userAddress);
+  const staked = await opnVault.stakedAmount(userAddress);
+  const reward = await opnVault.pendingReward(userAddress);
+
+  document.getElementById("opnBalance").innerText = ethers.formatEther(balance);
+  document.getElementById("stakedOPN").innerText = ethers.formatEther(staked);
+  document.getElementById("pendingReward").innerText = ethers.formatEther(reward);
+}
+
+async function updateFaucetStatus() {
+  const canClaim =
+    await opnToken.canClaimFaucet(userAddress);
+
+  const faucetBtn =
+    document.getElementById("faucetBtn");
+
+  const faucetStatus =
+    document.getElementById("faucetStatus");
+
+  if (canClaim) {
+    faucetBtn.disabled = false;
+    faucetStatus.innerText = "Available Now";
+  } else {
+    faucetBtn.disabled = true;
+    faucetStatus.innerText = "Already claimed today";
+  }
+}
+
+window.claimTestOPN = async function () {
+  try {
+    statusText.innerText = "Claiming 1000 OQH...";
+
+    const tx = await opnToken.claimTestOPN();
+    await tx.wait();
+
+    statusText.innerText = "Claimed 1000 OQH successfully!";
+
+    try {
+      await renderDeFiVault();
+      await updateFaucetStatus();
+    } catch (uiErr) {
+      console.error("UI refresh error:", uiErr);
+    }
+  } catch (err) {
+    console.error(err);
+    statusText.innerText =
+      err.reason || "Faucet already claimed today.";
+  }
+};
+
+window.stakeOPN = async function () {
+  try {
+    statusText.innerText = "Approving OPN...";
+
+    const { opnToken, opnVault } = await getDeFiContracts();
+    const input = document.getElementById("stakeAmount").value;
+
+    if (!input || Number(input) <= 0) {
+      alert("Enter amount");
+      return;
+    }
+
+    const amount = ethers.parseEther(input);
+
+    const approveTx = await opnToken.approve(OPN_VAULT_ADDRESS, amount);
+    await approveTx.wait();
+
+    statusText.innerText = "Staking 100 OPN...";
+
+    const stakeTx = await opnVault.stake(amount);
+    await stakeTx.wait();
+
+    await renderDeFiVault();
+
+    statusText.innerText = "Staked 100 OPN successfully!";
+  } catch (err) {
+    console.error(err);
+    statusText.innerText = "Stake failed.";
+  }
+};
+
+window.claimVaultReward = async function () {
+  try {
+    statusText.innerText = "Claiming vault reward...";
+
+    const { opnVault } = await getDeFiContracts();
+    const tx = await opnVault.claimReward();
+    await tx.wait();
+
+    await renderDeFiVault();
+
+    statusText.innerText = "Vault reward claimed!";
+  } catch (err) {
+    console.error(err);
+    statusText.innerText = "Claim reward failed.";
+  }
+};
+
+window.withdrawOPN = async function () {
+  try {
+    statusText.innerText = "Withdrawing OPN...";
+
+    const { opnVault } = await getDeFiContracts();
+    const tx = await opnVault.withdraw();
+    await tx.wait();
+
+    await renderDeFiVault();
+
+    statusText.innerText = "Withdraw successful!";
+  } catch (err) {
+    console.error(err);
+    statusText.innerText = "Withdraw failed.";
+  }
+};
+window.setMaxStake = async function () {
+  const balance = document.getElementById("opnBalance").innerText;
+  document.getElementById("stakeAmount").value = parseFloat(balance);
 };
