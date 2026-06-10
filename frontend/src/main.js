@@ -2,8 +2,8 @@ import { ethers } from "ethers";
 import "./style.css";
 
 const CONTRACT_ADDRESS = "0x45C277439298AAF0952bC92236C78Aa138313a51";
-const OPN_TOKEN_ADDRESS = "0xE76ac2dA2E36c9D1261759a2145a1c39d90712E4";
-const OPN_VAULT_ADDRESS = "0xbed81f0BDd64EFce45AD77b42B6c8b52371991d5";
+const OPN_TOKEN_ADDRESS = "0xC88Fd59E170e3e27AF12427b1b461A4Dd2337aCd";
+const OPN_VAULT_ADDRESS = "0x8545c959F7D0678d4b2dB332b852932ad3E9E51A";
 const CHAIN_ID = "0x3d8";
 
 const ABI = [
@@ -31,8 +31,9 @@ const OPN_VAULT_ABI = [
   "function stake(uint256 amount)",
   "function withdraw()",
   "function claimReward()",
-  "function stakedAmount(address user) view returns(uint256)",
-  "function pendingReward(address user) view returns(uint256)"
+  "function stakedAmount(address user) view returns (uint256)",
+  "function pendingReward(address user) view returns (uint256)",
+  "function getNFTBoostBps(address user) view returns (uint256)"
 ];
 
 document.querySelector("#app").innerHTML = `
@@ -82,6 +83,7 @@ document.querySelector("#app").innerHTML = `
         <p><span>OQH Balance</span><b id="opnBalance">0</b></p>
         <p><span>Staked OQH</span><b id="stakedOPN">0</b></p>
         <p><span>Pending Reward</span><b id="pendingReward">0</b></p>
+        <p>NFT Boost: <span id="nftBoost">0%</span></p>
       </div>
 
       <div class="stake-input-wrapper">
@@ -360,7 +362,7 @@ connectBtn.onclick = async () => {
     statusText.innerText = "Wallet connected successfully.";
   } catch (error) {
   console.error("CONNECT ERROR:", error);
-  statusText.innerText = error.message || "Connection failed.";
+  statusText.innerText =  "Check-in not available right now. Please try again later.";
   }
 };
 
@@ -636,7 +638,7 @@ async function getUserTxCount() {
   return await provider.getTransactionCount(userAddress);
 }
 const OPN_TOKEN_ADDRESS = "0xeF9373765aAd5dbC752cdc4CD3f1E07844899d7B";
-const OPN_VAULT_ADDRESS = "0x729114c8F0432E5F5d972CFb44637A45A74b5D9A";
+const OPN_VAULT_ADDRESS = "0x697151A75Cbb649A22047F11bCD58B6c876bC611";
 
 };
 async function getDeFiContracts() {
@@ -667,28 +669,39 @@ async function renderDeFiVault() {
   const balance = await opnToken.balanceOf(userAddress);
   const staked = await opnVault.stakedAmount(userAddress);
   const reward = await opnVault.pendingReward(userAddress);
+  const boostBps = await opnVault.getNFTBoostBps(userAddress);
+  const boostPercent = Number(boostBps) / 100;
 
   document.getElementById("opnBalance").innerText = ethers.formatEther(balance);
   document.getElementById("stakedOPN").innerText = ethers.formatEther(staked);
   document.getElementById("pendingReward").innerText = ethers.formatEther(reward);
+  document.getElementById("nftBoost").innerText = `+${boostPercent}%`;
 }
 
 async function updateFaucetStatus() {
-  const canClaim =
-    await opnToken.canClaimFaucet(userAddress);
+  try {
+    if (!userAddress) return;
 
-  const faucetBtn =
-    document.getElementById("faucetBtn");
+    const { opnToken } = await getDeFiContracts();
 
-  const faucetStatus =
-    document.getElementById("faucetStatus");
+    const canClaim = await opnToken.canClaimFaucet(userAddress);
 
-  if (canClaim) {
-    faucetBtn.disabled = false;
-    faucetStatus.innerText = "Available Now";
-  } else {
-    faucetBtn.disabled = true;
-    faucetStatus.innerText = "Already claimed today";
+    const faucetBtn = document.getElementById("faucetBtn");
+    const faucetStatus = document.getElementById("faucetStatus");
+
+    if (canClaim) {
+      faucetBtn.disabled = false;
+      faucetStatus.innerText = "Available Now";
+    } else {
+      faucetBtn.disabled = true;
+      faucetStatus.innerText = "Already claimed today";
+    }
+  } catch (err) {
+    console.error(err);
+    const faucetStatus = document.getElementById("faucetStatus");
+    if (faucetStatus) {
+      faucetStatus.innerText = "Faucet status unavailable";
+    }
   }
 }
 
@@ -716,8 +729,6 @@ window.claimTestOPN = async function () {
 
 window.stakeOPN = async function () {
   try {
-    statusText.innerText = "Approving OPN...";
-
     const { opnToken, opnVault } = await getDeFiContracts();
     const input = document.getElementById("stakeAmount").value;
 
@@ -728,17 +739,21 @@ window.stakeOPN = async function () {
 
     const amount = ethers.parseEther(input);
 
+    statusText.innerText = `Approving ${input} OQH...`;
     const approveTx = await opnToken.approve(OPN_VAULT_ADDRESS, amount);
     await approveTx.wait();
 
-    statusText.innerText = "Staking 100 OPN...";
+    console.log("APPROVE OK");
 
+    statusText.innerText = `Staking ${input} OQH...`;
     const stakeTx = await opnVault.stake(amount);
+
+    console.log("STAKE TX CREATED");
+
     await stakeTx.wait();
 
     await renderDeFiVault();
-
-    statusText.innerText = "Staked 100 OPN successfully!";
+    statusText.innerText = `Staked ${input} OQH successfully!`;
   } catch (err) {
     console.error(err);
     statusText.innerText = "Stake failed.";

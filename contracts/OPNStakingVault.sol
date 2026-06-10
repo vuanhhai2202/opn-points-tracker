@@ -3,8 +3,13 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+interface IOPNPoints {
+    function hasClaimedNFT(address user, uint256 tier) external view returns (bool);
+}
+
 contract OPNStakingVault {
     IERC20 public opnToken;
+    IOPNPoints public opnPoints;
 
     mapping(address => uint256) public stakedAmount;
     mapping(address => uint256) public stakeStartTime;
@@ -17,8 +22,9 @@ contract OPNStakingVault {
     event RewardClaimed(address indexed user, uint256 reward);
     event Withdrawn(address indexed user, uint256 amount);
 
-    constructor(address _opnToken) {
+    constructor(address _opnToken, address _opnPoints) {
         opnToken = IERC20(_opnToken);
+        opnPoints = IOPNPoints(_opnPoints);
     }
 
     function stake(uint256 amount) public {
@@ -42,17 +48,36 @@ contract OPNStakingVault {
         return (block.timestamp - stakeStartTime[user]) / 1 hours;
     }
 
+    function getNFTBoostBps(address user) public view returns (uint256) {
+        if (opnPoints.hasClaimedNFT(user, 3)) {
+            return 5000; // Gold: +50%
+        }
+
+        if (opnPoints.hasClaimedNFT(user, 2)) {
+            return 2500; // Silver: +25%
+        }
+
+        if (opnPoints.hasClaimedNFT(user, 1)) {
+            return 1000; // Bronze: +10%
+        }
+
+        return 0;
+    }
+
     function pendingReward(address user) public view returns (uint256) {
         uint256 hoursStaked = stakingHours(user);
 
-        uint256 totalReward =
+        uint256 baseReward =
             (stakedAmount[user] * hoursStaked * REWARD_RATE_PER_HOUR_BPS) / BPS_DENOMINATOR;
 
-        if (totalReward <= rewardClaimed[user]) {
+        uint256 boostBps = getNFTBoostBps(user);
+        uint256 boostedReward = baseReward + ((baseReward * boostBps) / BPS_DENOMINATOR);
+
+        if (boostedReward <= rewardClaimed[user]) {
             return 0;
         }
 
-        return totalReward - rewardClaimed[user];
+        return boostedReward - rewardClaimed[user];
     }
 
     function claimReward() public {
