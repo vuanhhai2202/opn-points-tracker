@@ -3,7 +3,7 @@ import "./style.css";
 
 const CONTRACT_ADDRESS = "0x45C277439298AAF0952bC92236C78Aa138313a51";
 const OQH_TOKEN_ADDRESS = "0xC88Fd59E170e3e27AF12427b1b461A4Dd2337aCd";
-const OPN_VAULT_ADDRESS = "0x9eb231B49da7099D1F61FdF07D0e7aB084628ECF";
+const OQH_VAULT_ADDRESS = "0x9eb231B49da7099D1F61FdF07D0e7aB084628ECF";
 const OPNT_TOKEN_ADDRESS = "0x2aEc1Db9197Ff284011A6A1d0752AD03F5782B0d";
 const OPN_STAKING_ADDRESS = "0x48D576bD6Ea0D311f7274DeC70219de228710770";
 const CHAIN_ID = "0x3d8";
@@ -20,7 +20,8 @@ const ABI = [
   "function lastCheckInDay(address user) view returns (uint256)",
   "function canClaimFaucet(address user) view returns(bool)"
 ];
-const OPN_TOKEN_ABI = [
+
+const OQH_TOKEN_ABI = [
   "function claimTestOPN()",
   "function balanceOf(address user) view returns(uint256)",
   "function approve(address spender, uint256 amount)",
@@ -28,7 +29,7 @@ const OPN_TOKEN_ABI = [
   "function canClaimFaucet(address user) view returns(bool)"
 ];
 
-const OPN_VAULT_ABI = [
+const OQH_VAULT_ABI = [
   "function stake(uint256 amount)",
   "function withdraw()",
   "function claimReward()",
@@ -61,7 +62,6 @@ document.querySelector("#app").innerHTML = `
       <p class="badge">IOPN Testnet • Chain ID 984</p>
       <h1>OPN Points Tracker</h1>
       <p class="subtitle">Daily check-in and earn on-chain OPN points.</p>
-
       <button id="connectBtn">Connect OKX or MetaMask Wallet</button>
 
       <div class="info">
@@ -73,17 +73,15 @@ document.querySelector("#app").innerHTML = `
       </div>
 
       <button id="checkInBtn">Daily Check-In</button>
-
       <p id="status"></p>
+      </div>
 
-    </div>
      <div class="card nft-card-main">
       <h2>NFT Reward Center</h2>
       <div id="nftRewards"></div>
     </div>
 
     <div class="card quest-card-main">
-
       <div class="card faucet-card">
         <h2>OQH Faucet</h2>
         <p class="subtitle">
@@ -93,10 +91,17 @@ document.querySelector("#app").innerHTML = `
       <button id="faucetBtn" onclick="claimTestOPN()">
         Claim 1000 OQH
       </button>
-      </div>
+      </div> 
 
       <h2>OQH DeFi Vault</h2>
 
+      <div class="oqh-total-card">
+        <div class="oqh-total-title">TOTAL STAKING OQH</div>
+        <div class="oqh-total-value">
+          <span id="totalOQHStaked">0</span> OQH
+        </div>
+      </div>
+        
       <div class="info">
         <p><span>OQH Balance</span><b id="opnBalance">0</b></p>
         <p><span>Staked OQH</span><b id="stakedOPN">0</b></p>
@@ -124,7 +129,6 @@ document.querySelector("#app").innerHTML = `
       <button onclick="stakeOPN()">
         Stake OQH
       </button>
-
       <button onclick="claimVaultReward()">
         Claim Reward
       </button>
@@ -134,7 +138,6 @@ document.querySelector("#app").innerHTML = `
       </button>
     </div>
   <div class="card">
-
       <div class="card faucet-card">
       <h2>OPN Faucet</h2>
       <p>Get free testnet OPN for gas and native staking.</p>
@@ -143,7 +146,6 @@ document.querySelector("#app").innerHTML = `
         Get Testnet OPN
       </button>
     </div>
-
       <h2>OPN Stake → Earn Points</h2>
       <div class="opn-total-box">
         <div class="opn-total-label">TOTAL STAKING OPN</div>
@@ -152,15 +154,20 @@ document.querySelector("#app").innerHTML = `
         </div>
       </div>
 
-      <p>My OPN Balance: <span id="opntBalance">0</span></p>
-      <p>My Staked OPN: <span id="opntStaked">0</span></p>
-      <p>Pending Points: <span id="opntPendingPoints">0</span></p>
+      <div class="opn-info-box">
+        <p><span>My OPN Balance</span><b id="opntBalance">0</b></p>
+        <p><span>My Staked OPN</span><b id="opntStaked">0</b></p>
+        <p><span>Pending Points</span><b id="opntPendingPoints">0</b></p>
+      </div>
+
       <input id="opnStakeAmount" class="stake-input" placeholder="Amount OPN" />
       <button onclick="stakeOPNT()">Stake OPN</button>
       <button onclick="claimOPNStakingPoints()">Claim Points</button>
       <button onclick="withdrawOPNT()">Withdraw OPN</button>
     </div>
-    
+
+
+
     <div class="card quest-card-main">
       <h2>Quest System</h2>
       <div id="quests"></div>
@@ -171,7 +178,15 @@ document.querySelector("#app").innerHTML = `
     <div id="onchainQuests"></div>
     </div>
 
-     
+      <section class="leaderboard-section">
+        <h2>🏆 Leaderboard</h2>
+
+        <div class="leaderboard-card">
+          <div id="leaderboardList">
+            Loading leaderboard...
+          </div>
+        </div>
+      </section>
 
   </main>
 `;
@@ -412,16 +427,18 @@ connectBtn.onclick = async () => {
 
     signer = await provider.getSigner();
     userAddress = await signer.getAddress();
+    saveLeaderboardWallet(userAddress);
 
     contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-    opnToken = new ethers.Contract( 
+      opnToken = new ethers.Contract( 
         OQH_TOKEN_ADDRESS, 
-        OPN_TOKEN_ABI, 
-        signer);
+        OQH_TOKEN_ABI, 
+        signer
+      );
 
       opnVault = new ethers.Contract(
-        OPN_VAULT_ADDRESS,
-        OPN_VAULT_ABI,
+        OQH_VAULT_ADDRESS,
+        OQH_VAULT_ABI,
         signer
       );
       opnStakingContract = new ethers.Contract(
@@ -441,6 +458,7 @@ connectBtn.onclick = async () => {
 
     await updateCheckInButton();
     await refreshPoints();
+    await renderLeaderboard();
     await renderQuests();
     await renderOnchainQuests();
     await renderNFTRewards();
@@ -448,6 +466,7 @@ connectBtn.onclick = async () => {
     await renderDeFiVault();
     await updateFaucetStatus();
     await renderOPNStaking();
+    await renderLeaderboard();
 
     connectBtn.innerText = "Connected";
     connectBtn.disabled = true;
@@ -509,6 +528,7 @@ checkInBtn.onclick = async () => {
     saveTodayCheckIn();
 
     await refreshPoints();
+    await renderLeaderboard();
     await renderNFTRewards();
 
     updateCheckInButton();
@@ -521,6 +541,7 @@ checkInBtn.onclick = async () => {
     updateCheckInButton();
   }
   await refreshPoints();
+  await renderLeaderboard();
   await updateCheckInButton();
   await startCountdown();
 };
@@ -636,6 +657,7 @@ async function renderOnchainQuests() {
         statusText.innerText = `Claimed +${q.reward} points!`;
 
         await refreshPoints();
+        await renderLeaderboard();
         await renderOnchainQuests();
         await renderNFTRewards();
       } catch (err) {
@@ -658,6 +680,7 @@ window.completeQuest = async function (questId, reward) {
     await tx.wait();
 
     await refreshPoints();
+    await renderLeaderboard();
     await renderQuests();
     await renderNFTRewards();
 
@@ -780,15 +803,16 @@ async function getDeFiContracts() {
   const provider = new ethers.BrowserProvider(walletProvider);
   const signer = await provider.getSigner();
 
+  
   const opnToken = new ethers.Contract(
     OQH_TOKEN_ADDRESS,
-    OPN_TOKEN_ABI,
+    OQH_TOKEN_ABI,
     signer
   );
 
   const opnVault = new ethers.Contract(
-    OPN_VAULT_ADDRESS,
-    OPN_VAULT_ABI,
+    OQH_VAULT_ADDRESS,
+    OQH_VAULT_ABI,
     signer
   );
 
@@ -813,20 +837,37 @@ async function getDeFiContracts() {
 }
 
 async function renderDeFiVault() {
-  if (!userAddress) return;
+  try {
+    if (!userAddress) return;
 
-  const { opnToken, opnVault } = await getDeFiContracts();
+    console.log("renderDeFiVault running");
+    console.log("userAddress:", userAddress);
 
-  const balance = await opnToken.balanceOf(userAddress);
-  const staked = await opnVault.stakedAmount(userAddress);
-  const reward = await opnVault.pendingReward(userAddress);
-  const boostBps = await opnVault.getNFTBoostBps(userAddress);
-  const boostPercent = Number(boostBps) / 100;
+    const { opnToken, opnVault } = await getDeFiContracts();
 
-  document.getElementById("opnBalance").innerText = ethers.formatEther(balance);
-  document.getElementById("stakedOPN").innerText = ethers.formatEther(staked);
-  document.getElementById("pendingReward").innerText = ethers.formatEther(reward);
-  document.getElementById("nftBoost").innerText = `+${boostPercent}%`;
+    console.log("OQH token address:", opnToken.target);
+    console.log("OQH vault address:", opnVault.target);
+
+    const balance = await opnToken.balanceOf(userAddress);
+    const totalOQHStaked = await opnToken.balanceOf(OQH_VAULT_ADDRESS);
+    const staked = await opnVault.stakedAmount(userAddress);
+    const reward = await opnVault.pendingReward(userAddress);
+    const boostBps = await opnVault.getNFTBoostBps(userAddress);
+    const boostPercent = Number(boostBps) / 100;
+
+    console.log("OQH balance raw:", balance.toString());
+    console.log("OQH staked raw:", staked.toString());
+    console.log("OQH reward raw:", reward.toString());
+
+    document.getElementById("opnBalance").innerText = ethers.formatEther(balance);
+    document.getElementById("stakedOPN").innerText = ethers.formatEther(staked);
+    document.getElementById("pendingReward").innerText = ethers.formatEther(reward);
+    document.getElementById("nftBoost").innerText = `+${boostPercent}%`;
+    document.getElementById("totalOQHStaked").innerText =
+      Number(ethers.formatEther(totalOQHStaked)).toFixed(4);
+  } catch (err) {
+    console.error("renderDeFiVault error:", err);
+  }
 }
 
 async function updateFaucetStatus() {
@@ -891,7 +932,7 @@ window.stakeOPN = async function () {
     const amount = ethers.parseEther(input);
 
     statusText.innerText = `Approving ${input} OQH...`;
-    const approveTx = await opnToken.approve(OPN_VAULT_ADDRESS, amount);
+    const approveTx = await opnToken.approve(OQH_VAULT_ADDRESS, amount);
     await approveTx.wait();
 
     console.log("APPROVE OK");
@@ -1014,6 +1055,7 @@ async function claimOPNStakingPoints() {
     console.log("Points claimed");
     await renderOPNStaking();
     await refreshPoints();
+    await renderLeaderboard();
   } catch (err) {
     console.error("Claim points failed", err);
   }
@@ -1091,6 +1133,7 @@ async function claimNFTReward(tier) {
     console.log("NFT claimed");
 
     await refreshPoints();
+    await renderLeaderboard();
     await renderNFTRewards();
     await renderDeFiVault();
   } catch (err) {
@@ -1103,3 +1146,89 @@ window.stakeOPNT = stakeOPNT;
 window.claimOPNStakingPoints = claimOPNStakingPoints;
 window.withdrawOPNT = withdrawOPNT;
 window.claimNFTReward = claimNFTReward;
+
+const LEADERBOARD_STORAGE_KEY = "opn_leaderboard_wallets";
+
+function getSavedLeaderboardWallets() {
+  const saved = localStorage.getItem(LEADERBOARD_STORAGE_KEY);
+  return saved ? JSON.parse(saved) : [];
+}
+
+function saveLeaderboardWallet(wallet) {
+  if (!wallet) return;
+
+  const wallets = getSavedLeaderboardWallets();
+  const lowerWallet = wallet.toLowerCase();
+
+  const exists = wallets.some((w) => w.toLowerCase() === lowerWallet);
+
+  if (!exists) {
+    wallets.push(wallet);
+    localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(wallets));
+  }
+}
+
+function shortWallet(address) {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+async function renderLeaderboard() {
+  const box = document.getElementById("leaderboardList");
+  if (!box || !contract) return;
+
+  box.innerHTML = "Loading leaderboard...";
+
+  try {
+    let wallets = getSavedLeaderboardWallets();
+
+    if (userAddress) {
+      saveLeaderboardWallet(userAddress);
+      wallets = getSavedLeaderboardWallets();
+    }
+
+    const rows = [];
+
+    for (const wallet of wallets) {
+      const points = await contract.getPoints(wallet);
+
+      if (Number(points) > 0) {
+        rows.push({
+          wallet,
+          points: Number(points),
+        });
+      }
+    }
+
+    if (rows.length === 0) {
+      box.innerHTML = `
+        <div class="empty-leaderboard">
+          No ranked wallets yet
+        </div>
+      `;
+      return;
+    }
+
+   rows.sort((a, b) => b.points - a.points);
+    const topRows = rows.slice(0, 20);
+
+    box.innerHTML = topRows
+      .map(
+        (item, index) => `
+          <div class="leaderboard-row">
+            <div>
+              <div class="leaderboard-rank">#${index + 1}</div>
+              <div class="leaderboard-wallet">${shortWallet(item.wallet)}</div>
+            </div>
+
+            <div class="leaderboard-points">
+              ${item.points} pts
+            </div>
+          </div>
+        `
+      )
+      .join("");
+  } catch (err) {
+    console.error("Leaderboard error:", err);
+    box.innerHTML = "Failed to load leaderboard";
+  }
+}
