@@ -188,6 +188,23 @@ document.querySelector("#app").innerHTML = `
         </div>
       </section>
 
+      <section class="referral-section">
+  <h2>🤝 Referral</h2>
+
+    <div class="referral-card">
+      <p>Invite friends to join OPN Quest Hub.</p>
+      <div class="referral-box">
+        <span>Your Invite Link</span>
+        <input id="referralLink" readonly placeholder="Connect wallet first" />
+        <button id="copyReferralBtn">Copy Link</button>
+      </div>
+      <p id="referrerText">No referrer detected</p>
+      <button id="claimReferralBtn">
+        Claim Referral Bonus
+      </button>
+    </div>
+  </section>
+
   </main>
 `;
 
@@ -428,6 +445,7 @@ connectBtn.onclick = async () => {
     signer = await provider.getSigner();
     userAddress = await signer.getAddress();
     saveLeaderboardWallet(userAddress);
+    updateReferralUI();
 
     contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
       opnToken = new ethers.Contract( 
@@ -1231,4 +1249,98 @@ async function renderLeaderboard() {
     console.error("Leaderboard error:", err);
     box.innerHTML = "Failed to load leaderboard";
   }
+}
+
+const REFERRAL_STORAGE_KEY = "opn_referrals";
+const CLAIMED_REFERRAL_KEY = "opn_claimed_referral";
+
+function getRefFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("ref");
+}
+
+function updateReferralUI() {
+  const referralInput = document.getElementById("referralLink");
+  const referrerText = document.getElementById("referrerText");
+
+  if (!referralInput || !referrerText) return;
+
+  if (userAddress) {
+    referralInput.value = `${window.location.origin}${window.location.pathname}?ref=${userAddress}`;
+  }
+
+  const ref = getRefFromUrl();
+
+  if (ref && userAddress && ref.toLowerCase() !== userAddress.toLowerCase()) {
+    referrerText.innerText = `Referrer: ${shortWallet(ref)}`;
+  } else {
+    referrerText.innerText = "No referrer detected";
+  }
+}
+
+function saveReferral(referrer, referee) {
+  const saved = localStorage.getItem(REFERRAL_STORAGE_KEY);
+  const referrals = saved ? JSON.parse(saved) : [];
+
+  const exists = referrals.some(
+    (item) => item.referee.toLowerCase() === referee.toLowerCase()
+  );
+
+  if (!exists) {
+    referrals.push({
+      referrer,
+      referee,
+      time: Date.now(),
+    });
+
+    localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(referrals));
+  }
+}
+
+const copyReferralBtn = document.getElementById("copyReferralBtn");
+
+if (copyReferralBtn) {
+  copyReferralBtn.onclick = async () => {
+    const input = document.getElementById("referralLink");
+    if (!input || !input.value) return;
+
+    await navigator.clipboard.writeText(input.value);
+    alert("Referral link copied!");
+  };
+}
+
+const claimReferralBtn = document.getElementById("claimReferralBtn");
+
+if (claimReferralBtn) {
+  claimReferralBtn.onclick = async () => {
+    if (!userAddress) {
+      alert("Connect wallet first");
+      return;
+    }
+
+    const ref = getRefFromUrl();
+
+    if (!ref) {
+      alert("No referrer found");
+      return;
+    }
+
+    if (ref.toLowerCase() === userAddress.toLowerCase()) {
+      alert("You cannot refer yourself");
+      return;
+    }
+
+    const claimedKey = `${CLAIMED_REFERRAL_KEY}_${userAddress.toLowerCase()}`;
+
+    if (localStorage.getItem(claimedKey)) {
+      alert("Referral bonus already claimed");
+      return;
+    }
+
+    saveReferral(ref, userAddress);
+    localStorage.setItem(claimedKey, "true");
+
+    alert("Referral recorded successfully!");
+    updateReferralUI();
+  };
 }
