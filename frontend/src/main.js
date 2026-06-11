@@ -2,15 +2,16 @@ import { ethers } from "ethers";
 import "./style.css";
 
 const CONTRACT_ADDRESS = "0x45C277439298AAF0952bC92236C78Aa138313a51";
-const OPN_TOKEN_ADDRESS = "0xC88Fd59E170e3e27AF12427b1b461A4Dd2337aCd";
+const OQH_TOKEN_ADDRESS = "0xC88Fd59E170e3e27AF12427b1b461A4Dd2337aCd";
 const OPN_VAULT_ADDRESS = "0x8545c959F7D0678d4b2dB332b852932ad3E9E51A";
+const OPNT_TOKEN_ADDRESS = "0x2aEc1Db9197Ff284011A6A1d0752AD03F5782B0d";
+const OPN_STAKING_ADDRESS = "0x48D576bD6Ea0D311f7274DeC70219de228710770";
 const CHAIN_ID = "0x3d8";
 
 const ABI = [
   "function dailyCheckIn(uint256 amount)",
   "function getPoints(address user) view returns(uint256)",
   "function canCheckIn(address user) view returns(bool)",
-
   "function completeQuest(uint256 questId, uint256 reward)",
   "function hasCompletedQuest(address user, uint256 questId) view returns(bool)",
   "function claimNFT(uint256 tier)",
@@ -34,6 +35,22 @@ const OPN_VAULT_ABI = [
   "function stakedAmount(address user) view returns (uint256)",
   "function pendingReward(address user) view returns (uint256)",
   "function getNFTBoostBps(address user) view returns (uint256)"
+];
+
+const OPN_STAKING_ABI = [
+  "function stake() payable",
+  "function withdraw(uint256 amount)",
+  "function claimPoints()",
+  "function pendingPoints(address user) view returns(uint256)",
+  "function stakedAmount(address user) view returns(uint256)",
+  "function totalUserPoints(address user) view returns(uint256)",
+  "function totalStaked() view returns(uint256)"
+];
+
+const ERC20_ABI = [
+  "function approve(address spender,uint256 amount) returns(bool)",
+  "function balanceOf(address user) view returns(uint256)",
+  "function decimals() view returns(uint8)"
 ];
 
 document.querySelector("#app").innerHTML = `
@@ -127,6 +144,26 @@ document.querySelector("#app").innerHTML = `
     <div id="onchainQuests"></div>
     </div>
 
+      <div class="card">
+    <h2>OPN Stake → Earn Points</h2>
+
+    <div class="opn-total-box">
+      <div class="opn-total-label">TOTAL STAKING OPN</div>
+      <div class="opn-total-value">
+        <span id="opntTotalStaked">0</span> OPN
+      </div>
+    </div>
+
+    <p>My OPN Balance: <span id="opntBalance">0</span></p>
+    <p>My Staked OPN: <span id="opntStaked">0</span></p>
+    <p>Pending Points: <span id="opntPendingPoints">0</span></p>
+
+    <input id="opnStakeAmount" class="stake-input" placeholder="Amount OPN" />
+
+    <button onclick="stakeOPNT()">Stake OPN</button>
+    <button onclick="claimOPNStakingPoints()">Claim Points</button>
+    <button onclick="withdrawOPNT()">Withdraw OPN</button>
+  </div>
 
   </main>
 `;
@@ -145,6 +182,8 @@ let userAddress;
 let countdownTimer;
 let opnToken;
 let opnVault;
+let opnStakingContract;
+let opntTokenContract;
 
 function randomPoints() {
   const rewards = [10, 20, 30, 40, 50];
@@ -304,8 +343,21 @@ async function switchToIOPN(walletProvider) {
 }
 
 async function refreshPoints() {
-  const points = await contract.getPoints(userAddress);
-  const pointNumber = Number(points);
+  const questPoints = await contract.getPoints(userAddress);
+
+  let stakingPoints = 0;
+
+  try {
+    const { opnStaking } = await getDeFiContracts();
+    stakingPoints = Number(
+      await opnStaking.totalUserPoints(userAddress)
+    );
+  } catch (err) {
+    console.error("Load staking points failed", err);
+  }
+
+  const pointNumber =
+    Number(questPoints) + stakingPoints;
 
   pointsText.innerText = pointNumber.toString();
   userBadge.innerText = getBadge(pointNumber);
@@ -331,17 +383,28 @@ connectBtn.onclick = async () => {
     userAddress = await signer.getAddress();
 
     contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-    opnToken = new ethers.Contract(
-        OPN_TOKEN_ADDRESS,
-        OPN_TOKEN_ABI,
-        signer
-      );
+    opnToken = new ethers.Contract( 
+        OQH_TOKEN_ADDRESS, 
+        OPN_TOKEN_ABI, 
+        signer);
 
       opnVault = new ethers.Contract(
         OPN_VAULT_ADDRESS,
         OPN_VAULT_ABI,
         signer
       );
+      opnStakingContract = new ethers.Contract(
+        OPN_STAKING_ADDRESS,
+        OPN_STAKING_ABI,
+        signer
+      );
+
+      opntTokenContract = new ethers.Contract(
+        OPNT_TOKEN_ADDRESS,
+        ERC20_ABI,
+        signer
+      );
+
     walletText.innerText =
       userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
 
@@ -353,16 +416,24 @@ connectBtn.onclick = async () => {
     await startCountdown();
     await renderDeFiVault();
     await updateFaucetStatus();
+    await renderOPNStaking();
 
     connectBtn.innerText = "Connected";
     connectBtn.disabled = true;
 
     updateCheckInButton();
 
-    statusText.innerText = "Wallet connected successfully.";
-  } catch (error) {
-  console.error("CONNECT ERROR:", error);
-  statusText.innerText =  "Check-in not available right now. Please try again later.";
+    statusText.innerText = "";
+    } catch (error) {
+    console.error("CONNECT ERROR:", error);
+
+    if (userAddress) {
+      connectBtn.innerText = "Connected";
+      connectBtn.disabled = true;
+      statusText.innerText = "";
+    } else {
+      statusText.innerText = "Wallet connection failed. Please try again.";
+    }
   }
 };
 
@@ -637,17 +708,16 @@ async function getUserTxCount() {
 
   return await provider.getTransactionCount(userAddress);
 }
-const OPN_TOKEN_ADDRESS = "0xeF9373765aAd5dbC752cdc4CD3f1E07844899d7B";
-const OPN_VAULT_ADDRESS = "0x697151A75Cbb649A22047F11bCD58B6c876bC611";
 
 };
+
 async function getDeFiContracts() {
   const walletProvider = getWalletProvider();
   const provider = new ethers.BrowserProvider(walletProvider);
   const signer = await provider.getSigner();
 
   const opnToken = new ethers.Contract(
-    OPN_TOKEN_ADDRESS,
+    OQH_TOKEN_ADDRESS,
     OPN_TOKEN_ABI,
     signer
   );
@@ -658,7 +728,24 @@ async function getDeFiContracts() {
     signer
   );
 
-  return { opnToken, opnVault };
+  const opnStaking = new ethers.Contract(
+    OPN_STAKING_ADDRESS,
+    OPN_STAKING_ABI,
+    signer
+  );
+
+  const opntToken = new ethers.Contract(
+    OPNT_TOKEN_ADDRESS,
+    ERC20_ABI,
+    signer
+  );
+
+  return {
+    opnToken,
+    opnVault,
+    opnStaking,
+    opntToken
+  };
 }
 
 async function renderDeFiVault() {
@@ -797,3 +884,136 @@ window.setMaxStake = async function () {
   const balance = document.getElementById("opnBalance").innerText;
   document.getElementById("stakeAmount").value = parseFloat(balance);
 };
+
+async function approveOPNT() {
+  const input = document.getElementById("opnStakeAmount");
+  const amount = input.value;
+
+  if (!amount || Number(amount) <= 0) {
+    showStatus("Enter OPNT amount first");
+    return;
+  }
+
+  try {
+    showStatus("Approving OPNT...");
+    const parsed = ethers.parseUnits(amount, 18);
+    const tx = await opntTokenContract.approve(OPN_STAKING_ADDRESS, parsed);
+    await tx.wait();
+    showStatus("OPNT approved");
+  } catch (err) {
+    showStatus("Approve failed");
+    console.error(err);
+  }
+}
+
+async function stakeOPNT() {
+  console.log("Stake OPN button clicked");
+
+  const input = document.getElementById("opnStakeAmount");
+  const amount = input.value;
+
+  if (!amount || Number(amount) <= 0) {
+    console.log("Enter OPN amount first");
+    return;
+  }
+
+  try {
+    const { opnStaking } = await getDeFiContracts();
+    const parsed = ethers.parseUnits(amount, 18);
+
+    console.log("Staking native OPN...");
+
+    const stakeTx = await opnStaking.stake({
+      value: parsed
+    });
+
+    await stakeTx.wait();
+
+    console.log("OPN staked. Points are earning.");
+    await renderOPNStaking();
+  } catch (err) {
+    console.error("Stake OPN failed");
+    console.error(err);
+  }
+}
+
+async function claimOPNStakingPoints() {
+  console.log("Claim Points button clicked");
+
+  try {
+    const { opnStaking } = await getDeFiContracts();
+
+    console.log("Claiming points...");
+    const tx = await opnStaking.claimPoints();
+    await tx.wait();
+
+    console.log("Points claimed");
+    await renderOPNStaking();
+    await refreshPoints();
+  } catch (err) {
+    console.error("Claim points failed", err);
+  }
+}
+
+async function withdrawOPNT() {
+  console.log("Withdraw OPN button clicked");
+
+  const input = document.getElementById("opnStakeAmount");
+  const amount = input.value;
+
+  if (!amount || Number(amount) <= 0) {
+    console.log("Enter OPN amount first");
+    return;
+  }
+
+  try {
+    const { opnStaking } = await getDeFiContracts();
+    const parsed = ethers.parseUnits(amount, 18);
+
+    console.log("Withdrawing native OPN...");
+    const tx = await opnStaking.withdraw(parsed);
+    await tx.wait();
+
+    console.log("OPN withdrawn");
+    await renderOPNStaking();
+  } catch (err) {
+    console.error("Withdraw OPN failed", err);
+  }
+}
+
+async function renderOPNStaking() {
+  if (!userAddress) return;
+
+  const { opnStaking } = await getDeFiContracts();
+
+  const walletProvider = getWalletProvider();
+  const provider = new ethers.BrowserProvider(walletProvider);
+
+  const balance = await provider.getBalance(userAddress);
+
+  const staked = await opnStaking.stakedAmount(userAddress);
+  const pending = await opnStaking.pendingPoints(userAddress);
+  const totalPoints = await opnStaking.totalUserPoints(userAddress);
+  const totalStaked = await opnStaking.totalStaked();
+
+  console.log("Total staking raw:", totalStaked.toString());
+  console.log("Total staking formatted:", ethers.formatEther(totalStaked));
+
+  console.log("Native OPN balance:", ethers.formatEther(balance));
+
+  document.getElementById("opntBalance").innerText =
+    Number(ethers.formatEther(balance)).toFixed(4);
+
+  document.getElementById("opntStaked").innerText =
+    Number(ethers.formatEther(staked)).toFixed(4);
+
+  document.getElementById("opntPendingPoints").innerText =
+    pending.toString();
+
+  document.getElementById("opntTotalStaked").innerText =
+    Number(ethers.formatEther(totalStaked)).toFixed(4);
+} 
+
+window.stakeOPNT = stakeOPNT;
+window.claimOPNStakingPoints = claimOPNStakingPoints;
+window.withdrawOPNT = withdrawOPNT;
