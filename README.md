@@ -31,6 +31,8 @@ https://github.com/builderonhub/opn-quest-hub
 
 ### OPN Points & NFT Contract
 
+Contract: 0x143538DC00D3C15bE393358Af029D8Ccc6323708
+
 Core engagement contract responsible for:
 
 * Daily Check-In Rewards
@@ -42,6 +44,8 @@ Core engagement contract responsible for:
 
 ### OQH Token
 
+Contract: 0xC88Fd59E170e3e27AF12427b1b461A4Dd2337aCd
+
 Utility token used within OPN Quest Hub.
 
 Features:
@@ -52,6 +56,8 @@ Features:
 
 ### OQH DeFi Vault
 
+Contract: 0x9eb231B49da7099D1F61FdF07D0e7aB084628ECF
+
 Features:
 
 * Stake OQH
@@ -60,6 +66,8 @@ Features:
 * NFT Yield Boosts
 
 ### Native OPN Staking
+
+Contract: 0x48D576bD6Ea0D311f7274DeC70219de228710770
 
 Features:
 
