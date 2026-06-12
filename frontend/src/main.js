@@ -598,7 +598,10 @@ async function renderQuests() {
   if (!questBox || !contract || !userAddress) return;
 
   questBox.innerHTML = "";
-
+  const uniqueQuests = quests.filter(
+    (quest, index, self) =>
+      index === self.findIndex((q) => q.id === quest.id)
+  );
   for (const quest of quests) {
     const done = await contract.hasCompletedQuest(userAddress, quest.id);
 
@@ -1168,21 +1171,35 @@ window.claimNFTReward = claimNFTReward;
 const LEADERBOARD_STORAGE_KEY = "opn_leaderboard_wallets";
 
 function getSavedLeaderboardWallets() {
-  const saved = localStorage.getItem(LEADERBOARD_STORAGE_KEY);
-  return saved ? JSON.parse(saved) : [];
+  try {
+    const saved = localStorage.getItem(LEADERBOARD_STORAGE_KEY);
+    const wallets = saved ? JSON.parse(saved) : [];
+
+    return wallets.filter((wallet) =>
+      ethers.isAddress(wallet)
+    );
+  } catch (err) {
+    console.error("Load leaderboard wallets failed:", err);
+    return [];
+  }
 }
 
 function saveLeaderboardWallet(wallet) {
-  if (!wallet) return;
+  if (!wallet || !ethers.isAddress(wallet)) return;
 
   const wallets = getSavedLeaderboardWallets();
   const lowerWallet = wallet.toLowerCase();
 
-  const exists = wallets.some((w) => w.toLowerCase() === lowerWallet);
+  const exists = wallets.some(
+    (w) => w.toLowerCase() === lowerWallet
+  );
 
   if (!exists) {
     wallets.push(wallet);
-    localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(wallets));
+    localStorage.setItem(
+      LEADERBOARD_STORAGE_KEY,
+      JSON.stringify(wallets)
+    );
   }
 }
 
@@ -1197,31 +1214,28 @@ async function renderLeaderboard() {
   box.innerHTML = "Loading leaderboard...";
 
   try {
-    let wallets = getSavedLeaderboardWallets();
-
     if (userAddress) {
       saveLeaderboardWallet(userAddress);
-      wallets = getSavedLeaderboardWallets();
     }
 
-    // Xóa ví trùng
-    wallets = [...new Set(wallets.map((w) => w.toLowerCase()))];
+    const wallets = getSavedLeaderboardWallets();
 
     const rows = [];
 
     for (const wallet of wallets) {
-    const questPointsRaw = await contract.getPoints(wallet);
-    let stakingPoints = 0;
+      const questPointsRaw = await contract.getPoints(wallet);
+      let stakingPoints = 0;
 
-    try {
-      const { opnStaking } = await getDeFiContracts();
-      const stakingRaw = await opnStaking.claimedPoints(wallet);
-      stakingPoints = Number(stakingRaw.toString());
-    } catch (err) {
-      console.error("Load leaderboard staking points failed", err);
-    }
+      try {
+        const { opnStaking } = await getDeFiContracts();
+        const stakingRaw = await opnStaking.claimedPoints(wallet);
+        stakingPoints = Number(stakingRaw.toString());
+      } catch (err) {
+        console.error("Load leaderboard staking points failed", err);
+      }
 
-    const points = Number(questPointsRaw.toString()) + stakingPoints;
+      const points =
+        Number(questPointsRaw.toString()) + stakingPoints;
 
       if (points > 0) {
         rows.push({
@@ -1250,7 +1264,9 @@ async function renderLeaderboard() {
           <div class="leaderboard-row">
             <div>
               <div class="leaderboard-rank">#${index + 1}</div>
-              <div class="leaderboard-wallet">${shortWallet(item.wallet)}</div>
+              <div class="leaderboard-wallet">
+                ${shortWallet(item.wallet)}
+              </div>
             </div>
 
             <div class="leaderboard-points">
